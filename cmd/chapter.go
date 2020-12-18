@@ -1,5 +1,5 @@
-/*
-Copyright © 2020 NAME HERE <EMAIL ADDRESS>
+/*Package cmd ...
+Copyright © 2020 TheBoringDude <iamcoderx@gmail.com>
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,28 +17,44 @@ package cmd
 
 import (
 	"fmt"
-
+	"os"
 	"github.com/spf13/cobra"
+	"github.com/TheBoringDude/furb-cli/utils"
+	"net/url"
 )
 
 // chapterCmd represents the chapter command
 var chapterCmd = &cobra.Command{
 	Use:   "chapter",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+	Short: "Download a specific chapter of a manga.",
+	Long: `
+Download a specific chapter of a manga from a website.
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+USE:
+   furb-cli download chapter [https://manga-site.site/manga-title/chapter-ep]
+
+	`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("chapter called")
+		// check internet connection
+		onl := utils.CheckInternetConnection()
+		if !onl{
+			fmt.Println("\n [!] NOTE: You are not connected to the internet. Please connect and try again.")
+			os.Exit(1) // stop the app
+		} 
+
+		// check if website arg is valid or not
+		_, err := url.ParseRequestURI(qManga)
+		if err != nil{
+			fmt.Println("\n [!] NOTE: Manga url is not valid!")
+			os.Exit(1)
+		}
 	},
 }
 
 func init() {
 	downloadCmd.AddCommand(chapterCmd)
-
+	chapterCmd.Flags().StringVarP(&qManga, "site-chapter", "s", "", "Manga, manhuwa, manhua - chapter website link.")
+	chapterCmd.MarkFlagRequired("site-chapter")
 	// Here you will define your flags and configuration settings.
 
 	// Cobra supports Persistent Flags which will work for this command

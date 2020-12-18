@@ -1,5 +1,5 @@
-/*
-Copyright © 2020 NAME HERE <EMAIL ADDRESS>
+/*Package cmd ...
+Copyright © 2020 TheBoringDude <iamcoderx@gmail.com>
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,27 +17,85 @@ package cmd
 
 import (
 	"fmt"
-
+	"log"
+	"os"
 	"github.com/spf13/cobra"
+	"github.com/TheBoringDude/furb-cli/utils"
+	"github.com/TheBoringDude/furb-cli/furb"
+	"net/url"
 )
+
+// qManga -> the request manga
+var qManga string
 
 // mangaCmd represents the manga command
 var mangaCmd = &cobra.Command{
-	Use:   "manga",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+	Use:   "manga -s <manga-url-website>",
+	Short: "Download a full manga.",
+	Long: `
+Download all chapters of a manga, manhuwa, manhua from a specific website.
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+It overrides any existing folder and chapter folders depend on the name of the
+chapter from the website.
+
+	`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("manga called")
+		// check internet connection
+		onl := utils.CheckInternetConnection()
+		if !onl{
+			utils.ExitErr("[!] NOTE: You are not connected to the internet. Please connect and try again.")
+		} 
+
+		// check if website arg is valid or not
+		_, err := url.ParseRequestURI(qManga)
+		if err != nil{
+			utils.ExitErr("[!] NOTE: Manga url is not valid!")
+		}
+
+		rs, err := utils.Request(qManga, "manga")
+		if err != nil {
+			log.Fatalln(err) // log the error
+		}
+
+		resp := rs.(map[string]interface{})
+
+		fmt.Println(resp["title"]) // print the manga title
+
+		// get the current working dir
+		cwd, err := os.Getwd()
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		mDir := cwd + "/" + resp["title"].(string)
+
+		// create the dir
+		err = os.Mkdir(mDir, 0755)
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		// reverse the slice since it starts from the latest chapter to the earliest
+		chapters := utils.ReverseSlice(resp["chapters"].([]interface{}))
+
+		// extract chapters
+		for _, ch := range chapters {
+			chapter := ch.(map[string]interface{})
+
+			// download each
+			go furb.DownloadChapter(mDir, chapter["chapter_name"].(string), chapter["chapter_url"].(string))
+		}
+
+		// for the code not to break
+		var input string
+		fmt.Scanln(&input)
 	},
 }
 
 func init() {
 	downloadCmd.AddCommand(mangaCmd)
+	mangaCmd.Flags().StringVarP(&qManga, "site", "s", "", "Manga, manhuwa, manhua website link.")
+	mangaCmd.MarkFlagRequired("site")
 
 	// Here you will define your flags and configuration settings.
 
