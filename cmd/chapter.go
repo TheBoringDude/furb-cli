@@ -18,9 +18,10 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"github.com/spf13/cobra"
+
+	"github.com/TheBoringDude/furb-cli/furb"
 	"github.com/TheBoringDude/furb-cli/utils"
-	"net/url"
+	"github.com/spf13/cobra"
 )
 
 // chapterCmd represents the chapter command
@@ -30,24 +31,40 @@ var chapterCmd = &cobra.Command{
 	Long: `
 Download a specific chapter of a manga from a website.
 
-USE:
-   furb-cli download chapter [https://manga-site.site/manga-title/chapter-ep]
-
 	`,
 	Run: func(cmd *cobra.Command, args []string) {
-		// check internet connection
-		onl := utils.CheckInternetConnection()
-		if !onl{
-			fmt.Println("\n [!] NOTE: You are not connected to the internet. Please connect and try again.")
-			os.Exit(1) // stop the app
-		} 
-
-		// check if website arg is valid or not
-		_, err := url.ParseRequestURI(qManga)
-		if err != nil{
-			fmt.Println("\n [!] NOTE: Manga url is not valid!")
-			os.Exit(1)
+		// initialize new furb downloader
+		session := furb.Furb{
+			Request: qManga,
+			Type:    "chapter",
 		}
+
+		// validate request
+		// it will exit on its own, upon error
+		session.InitConf()
+
+		// request the manga api
+		rs, err := session.ReqAPI()
+		utils.LogErr(err)
+
+		resp := rs.(map[string]interface{})
+
+		fmt.Println(resp["title"])
+
+		// get the current working dir
+		cwd, err := os.Getwd()
+		utils.LogErr(err)
+
+		// initiate download
+		download := furb.Download{
+			Furb:  session,
+			Cwd:   cwd,
+			Title: resp["title"].(string),
+			DImg:  resp["images"].([]interface{}),
+		}
+
+		// download
+		go download.DownloadChapter()
 	},
 }
 

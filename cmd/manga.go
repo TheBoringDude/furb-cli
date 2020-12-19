@@ -17,12 +17,11 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 	"os"
-	"github.com/spf13/cobra"
-	"github.com/TheBoringDude/furb-cli/utils"
+
 	"github.com/TheBoringDude/furb-cli/furb"
-	"net/url"
+	"github.com/TheBoringDude/furb-cli/utils"
+	"github.com/spf13/cobra"
 )
 
 // qManga -> the request manga
@@ -40,22 +39,19 @@ chapter from the website.
 
 	`,
 	Run: func(cmd *cobra.Command, args []string) {
-		// check internet connection
-		onl := utils.CheckInternetConnection()
-		if !onl{
-			utils.ExitErr("[!] NOTE: You are not connected to the internet. Please connect and try again.")
-		} 
-
-		// check if website arg is valid or not
-		_, err := url.ParseRequestURI(qManga)
-		if err != nil{
-			utils.ExitErr("[!] NOTE: Manga url is not valid!")
+		// initialize new furb downloader
+		session := furb.Furb{
+			Request: qManga,
+			Type:    "manga",
 		}
 
-		rs, err := utils.Request(qManga, "manga")
-		if err != nil {
-			log.Fatalln(err) // log the error
-		}
+		// validate request
+		// it will exit on its own, upon error
+		session.InitConf()
+
+		// request the manga api
+		rs, err := session.ReqAPI()
+		utils.LogErr(err)
 
 		resp := rs.(map[string]interface{})
 
@@ -63,17 +59,12 @@ chapter from the website.
 
 		// get the current working dir
 		cwd, err := os.Getwd()
-		if err != nil {
-			log.Fatalln(err)
-		}
+		utils.LogErr(err)
 
 		mDir := cwd + "/" + resp["title"].(string)
 
 		// create the dir
-		err = os.Mkdir(mDir, 0755)
-		if err != nil {
-			log.Fatalln(err)
-		}
+		utils.MakeDir(mDir)
 
 		// reverse the slice since it starts from the latest chapter to the earliest
 		chapters := utils.ReverseSlice(resp["chapters"].([]interface{}))
@@ -82,13 +73,21 @@ chapter from the website.
 		for _, ch := range chapters {
 			chapter := ch.(map[string]interface{})
 
-			// download each
-			go furb.DownloadChapter(mDir, chapter["chapter_name"].(string), chapter["chapter_url"].(string))
-		}
+			// init new download
+			download := furb.Download{
+				Furb: furb.Furb{
+					Request: chapter["chapter_url"].(string),
+					Type:    "chapter",
+				},
+				Cwd:        mDir,
+				Title:      chapter["chapter_name"].(string),
+				ChapterURL: chapter["chapter_url"].(string),
+			}
 
-		// for the code not to break
-		var input string
-		fmt.Scanln(&input)
+			// {session, mDir, chapter["chapter_name"].(string), chapter["chapter_url"].(string)}
+			// download each
+			go download.DownloadChapter()
+		}
 	},
 }
 
