@@ -59,12 +59,13 @@ Download a specific chapter of a manga from a website.
 		download := furb.Download{
 			Furb:  session,
 			Cwd:   cwd,
+			Class: "chapter",
 			Title: resp["title"].(string),
 			DImg:  resp["images"].([]interface{}),
 		}
 
 		// download
-		go download.DownloadChapter()
+		download.DownloadChapter()
 	},
 }
 

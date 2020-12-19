@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"sync"
 
 	"github.com/TheBoringDude/furb-cli/utils"
 )
@@ -13,6 +14,7 @@ import (
 type Download struct {
 	Furb
 	Cwd        string
+	Class      string
 	Title      string
 	ChapterURL string
 	DImg       []interface{} // this is only used by DownloadChapter
@@ -38,40 +40,54 @@ func (d *Download) DownloadChapter() {
 		Title:      d.Title,
 	}
 
-	if d.ChapterURL != "" && len(d.DImg) > 0 {
+	if d.Class == "manga" {
 		req, err := d.ReqAPI()
 		utils.LogErr(err)
 
 		resp := req.(map[string]interface{})
 
 		imgDl.Images = resp["images"].([]interface{})
-	} else {
+	} else if d.Class == "chapter" {
 		imgDl.Images = d.DImg
 	}
 
 	// start downloading
-	go imgDl.imageDownload()
+	imgDl.imageDownload()
 }
 
 // download images
 func (i *image) imageDownload() {
-	fmt.Println("Downloading => " + i.Title)
+	var wg sync.WaitGroup
+
+	fmt.Printf("\n\tDownloading => " + i.Title)
 
 	for k, j := range i.Images {
 		imgf := utils.StripFilename(k, j.(string))
 
-		resp, err := http.Get(j.(string))
-		utils.LogErr(err)
-
-		defer resp.Body.Close()
-
-		// create the file
-		out, err := os.Create(i.ChapterCWD + "/" + imgf)
-		utils.LogErr(err)
-
-		defer out.Close()
-
-		// write resp body to file
-		_, err = io.Copy(out, resp.Body)
+		// start
+		wg.Add(1)
+		go worker(&wg, j.(string), i.ChapterCWD, imgf)
 	}
+
+	wg.Wait()
+
+	fmt.Printf("\t...DONE\n")
+}
+
+func worker(wg *sync.WaitGroup, j string, cwd string, fname string) {
+	defer wg.Done()
+
+	resp, err := http.Get(j)
+	utils.LogErr(err)
+
+	defer resp.Body.Close()
+
+	// create the file
+	out, err := os.Create(cwd + "/" + fname)
+	utils.LogErr(err)
+
+	defer out.Close()
+
+	// write resp body to file
+	_, err = io.Copy(out, resp.Body)
 }

@@ -29,7 +29,6 @@ func (f *Furb) ReqAPI() (interface{}, error) {
 
 	// data resp
 	var data interface{}
-
 	resp, err := http.Get(query)
 	if err != nil {
 		return data, err

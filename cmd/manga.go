@@ -80,13 +80,14 @@ chapter from the website.
 					Type:    "chapter",
 				},
 				Cwd:        mDir,
+				Class:      "manga",
 				Title:      chapter["chapter_name"].(string),
 				ChapterURL: chapter["chapter_url"].(string),
 			}
 
 			// {session, mDir, chapter["chapter_name"].(string), chapter["chapter_url"].(string)}
 			// download each
-			go download.DownloadChapter()
+			download.DownloadChapter()
 		}
 	},
 }
